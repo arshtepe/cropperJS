@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title></title>
+    <link rel="stylesheet" href="css/cropper-style.css" type="text/css" />
+    <script src="dist/cropperJS.js" > </script>
+    <script>
+
+        var cropper = new CropperJS( {
+            select: {
+                width: 300,
+                height: 300
+            }
+        } );
+    </script>
+</head>
+<body>
+
+<input type="file" id="file" >
+<input type="button" value="get crop" id="cropButton" />
+
+<script>
+
+
+    document.body.appendChild( cropper.getCropperElement() );
+
+    var file = document.getElementById( "file"),
+    cButton = document.getElementById( "cropButton" );
+
+    cButton.onclick = function () {
+        document.body.appendChild( cropper.getSelectImage() );
+    };
+
+    file.addEventListener( "change", function ( e ) {
+
+        var reader = new FileReader ();
+
+        reader.onload = function () {
+            var img = new Image();
+            img.src = reader.result;
+            cropper.setImg( img );
+        };
+
+        reader.readAsDataURL( e.target.files [0] );
+
+    } );
+
+
+</script>
+<h1>test</h1>
+</body>
+</html>
