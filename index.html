@@ -19,18 +19,28 @@
 
 <input type="file" id="file" >
 <input type="button" value="get crop" id="cropButton" />
+<input type="button" value="destroy" id="destroyBt" >
 
 <script>
 
 
     document.body.appendChild( cropper.getCropperElement() );
 
+
+
     var file = document.getElementById( "file"),
-    cButton = document.getElementById( "cropButton" );
+        dButton = document.getElementById( "destroyBt"),
+        cButton = document.getElementById( "cropButton" );
 
     cButton.onclick = function () {
         document.body.appendChild( cropper.getSelectImage() );
     };
+
+    dButton.onclick = function () {
+        cropper.destroy();
+    }
+
+
 
     file.addEventListener( "change", function ( e ) {
 

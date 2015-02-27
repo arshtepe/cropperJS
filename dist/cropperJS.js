@@ -28,12 +28,13 @@
 
         this.params = params;
         this._events = {};
+        this._htmlElements = {};
 
         if (isIMGElement(params.image)) {
             this.setImg(params.image);
         };
 
-        if (isUndefined(params.select.width) || isUndefined(params.select.height)) {
+        if (isEmpty(params.select.width) || isEmpty(params.select.height)) {
             throw new TypeError("Wrong argument [params.select.size.width] or  [params.select.size.height]");
         };
 
@@ -47,7 +48,7 @@
     //#include ./cropper.js
 
     CropperJS.prototype.getCropperElement = function () {
-        return this._container;
+        return this._htmlElements.container;
     };
 
     CropperJS.prototype.setImg = function (image) {
@@ -59,7 +60,7 @@
             throw new TypeError("Wrong argument [img]");
         }
 
-        if (!isUndefined(this._image) && (image == this._image || image.src == this._image.src)) {
+        if (!isEmpty(this._image) && (image == this._image || image.src == this._image.src)) {
 
             return;
         }
@@ -87,21 +88,22 @@
         //TODO refactor
 
         var size = this._size = this._getSize(image),
-            bgCtx = this._canvasImgBg.getContext("2d"),
+            imgBg = this._htmlElements.canvasImgBg,
+            bgCtx = imgBg.getContext("2d"),
             x = (size.width - params.select.width) / 2,
             y = (size.height - params.select.height) / 2;
 
-        setSize(size, this._canvasOverlay);
-        setSize(size, this._canvasImgBg);
-        setSize(size, this._container);
+        setSize(size, this._htmlElements.canvasOverlay);
+        setSize(size, imgBg);
+        setSize(size, this._htmlElements.container);
 
         bgCtx.drawImage(image, 0, 0, size.width, size.height);
 
-        if (isUndefined(params.select.maxWidth)) {
+        if (isEmpty(params.select.maxWidth)) {
             params.select.maxWidth = size.width;
         }
 
-        if (isUndefined(params.select.maxHeight)) {
+        if (isEmpty(params.select.maxHeight)) {
             params.select.maxHeight = size.height;
         }
 
@@ -114,7 +116,7 @@
 
         var select = this.params.select;
 
-        if (isUndefined(x) || isUndefined(y)) {
+        if (isEmpty(x) || isEmpty(y)) {
             throw new TypeError("Wrong argument [ x ] or [ y ]");
         }
 
@@ -142,25 +144,24 @@
         };
     };
 
-    CropperJS.prototype.getImageUrl = function (type) {
-
-        //TODO to find a better solution
+    CropperJS.prototype.getImageUrl = function () {
 
         var select = this._select,
             tempCanvas = document.createElement("canvas"),
+            ctxBg = this._htmlElements.canvasImgBg.getContext("2d"),
+            imgData = ctxBg.getImageData(select.x, select.y, select.width, select.height),
             ctx = tempCanvas.getContext("2d");
 
         tempCanvas.width = select.width;
         tempCanvas.height = select.height;
-        ctx.drawImage(this._image, select.x, select.y, select.width, select.height, 0, 0, select.width, select.height);
-
+        ctx.putImageData(imgData, 0, 0);
         return tempCanvas.toDataURL();
     };
 
-    CropperJS.prototype.getSelectImage = function (type) {
+    CropperJS.prototype.getSelectImage = function () {
 
         var img = new Image();
-        img.src = this.getImageUrl(type);
+        img.src = this.getImageUrl();
 
         return img;
     };
@@ -176,12 +177,26 @@
             return;
         }
 
-        var listeners;
+        this._image = undefined;
+        this._ctxOverlay = undefined;
 
-        //this._container = remove( this._container );
-        //this._canvasImgBg = remove( this._canvasImgBg );
-        //this._canvasOverlay = remove( this._canvasOverlay );
-        //this._dragBorder = remove( this._dragBorder );
+        //each( this._events, function ( listeners  ) {
+        //    console.log( listeners );
+        //
+        //    Object.keys( listeners ).forEach( function ( event) {
+        //
+        //        if( event != "elem" )
+        //            listeners.elem.removeEventListener ( event, listeners [ event ] );
+        //    } );
+        //
+        //} );
+
+        each(this._htmlElements, function (element, key, i, elements) {
+            elements[key] = remove(element);
+        });
+        delete this._htmlElements;
+
+        var listeners;
 
         Object.keys(this._events).forEach(function (key) {
 
@@ -195,6 +210,13 @@
 
         this._isDestroyed = true;
     };
+
+    function each(collection, callback) {
+
+        Object.keys(collection).forEach(function (key, i) {
+            callback(collection[key], key, i, collection);
+        });
+    }
 
     CropperJS.prototype._renderOverlay = function () {
 
@@ -220,8 +242,8 @@
             canvasBg,
             canvasOverlay;
 
-        canvasBg = this._canvasImgBg = createElem("canvas", 0);
-        canvasOverlay = this._canvasOverlay = createElem("canvas", 10);
+        canvasBg = this._htmlElements.canvasImgBg = createElem("canvas", 0);
+        canvasOverlay = this._htmlElements.canvasOverlay = createElem("canvas", 10);
         this._ctxOverlay = canvasOverlay.getContext("2d");
         this._ctxOverlay.__eventId = Math.random();
 
@@ -231,7 +253,7 @@
         container.style.height = 0;
         container.style.position = "relative";
 
-        this._container = container;
+        this._htmlElements.container = container;
     };
 
     CropperJS.prototype._getSize = function (image) {
@@ -264,8 +286,8 @@
     CropperJS.prototype._setEvents = function () {
 
         var self = this,
-            overlay = this._canvasOverlay,
-            dragBorder = this._dragBorder,
+            overlay = this._htmlElements.canvasOverlay,
+            dragBorder = this._htmlElements.dragBorder,
             listeners;
 
         this._events[overlay.__eventId] = {
@@ -289,9 +311,9 @@
         };
 
         this._events[dragBorder.__eventId] = {
-            dragStart: function dragStart() {},
+            mousedown: function mousedown() {},
 
-            dragEnd: function dragEnd() {},
+            mouseup: function mouseup() {},
             elem: dragBorder
         };
 
@@ -312,7 +334,7 @@
         function selecting(e) {
 
             var startCoords = self._selectingStart,
-                containerCoords = self._container.getBoundingClientRect(),
+                containerCoords = self._htmlElements.container.getBoundingClientRect(),
                 width = e.clientX - startCoords.x,
                 height = e.clientY - startCoords.y,
                 offsetX = width < 0 ? width : 0,
@@ -350,7 +372,7 @@
 
         dragBorder.__eventId = Math.random();
 
-        this._dragBorder = this._container.appendChild(dragBorder);
+        this._htmlElements.dragBorder = this._htmlElements.container.appendChild(dragBorder);
     };
 
     function setSelectState(state) {
@@ -387,7 +409,7 @@
 
             for (var key in from) {
 
-                if (isUndefined(to[key])) {
+                if (isEmpty(to[key])) {
 
                     if (isObject(from[key])) {
                         to[key] = Object.create(from[key]);
@@ -413,8 +435,8 @@
         return ({}).toString.call(elem) == "[object HTMLImageElement]";
     }
 
-    function isUndefined(val) {
-        return val === undefined;
+    function isEmpty(val) {
+        return val === undefined || val === null || val != val;
     }
 
     function isObject(elem) {
