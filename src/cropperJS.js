@@ -80,6 +80,7 @@
         //TODO refactor
 
         let size = this._size = this._getSize( image ),
+            bgCtx = this._canvasImgBg.getContext( "2d" ),
             x = ( size.width - params.select.width ) / 2 ,
             y = ( size.height - params.select.height ) / 2;
 
@@ -87,7 +88,7 @@
         setSize ( size, this._canvasImgBg );
         setSize ( size, this._container );
 
-        this._ctxBg.drawImage( image, 0, 0, size.width, size.height );
+        bgCtx.drawImage( image, 0, 0, size.width, size.height );
 
         if( isUndefined ( params.select.maxWidth ) ) {
         	params.select.maxWidth = size.width;
@@ -163,6 +164,33 @@
     };
 
 
+    CropperJS.prototype.destroy = function ( ) {
+
+        if ( this._isDestroyed ) {
+            return;
+        }
+
+        var listeners;
+
+        //this._container = remove( this._container );
+        //this._canvasImgBg = remove( this._canvasImgBg );
+        //this._canvasOverlay = remove( this._canvasOverlay );
+        //this._dragBorder = remove( this._dragBorder );
+
+        Object.keys( this._events ).forEach( ( key ) => {
+
+            listeners = this._events [ key ];
+
+            Object.keys( listeners ).forEach( function ( event ) {
+
+                if( event != "elem" )
+                    listeners.elem.removeEventListener ( event, listeners [ event ] );
+            } );
+        } );
+
+        this._isDestroyed = true;
+    };
+
     CropperJS.prototype._renderOverlay = function ( ) {
 
         var ctx = this._ctxOverlay;
@@ -189,10 +217,9 @@
             canvasBg, canvasOverlay;
 
         canvasBg = this._canvasImgBg = createElem( "canvas", 0 );
-        this._ctxBg = canvasBg.getContext ( "2d" );
         canvasOverlay = this._canvasOverlay = createElem( "canvas", 10 );
         this._ctxOverlay = canvasOverlay.getContext ( "2d" );
-        canvasOverlay.dataset.eventID = Math.random();
+        this._ctxOverlay.__eventId = Math.random();
 
         container.appendChild( canvasBg );
         container.appendChild( canvasOverlay );
@@ -388,6 +415,10 @@
         } ( defaultParams, params ) );
 
     };
+
+    function remove ( elem ) {
+        elem.parentNode.removeChild( elem );
+    }
 
     function  setProperty ( obj, prop, val ) {
         Object.defineProperty( obj, prop, val );
