@@ -170,28 +170,6 @@
             return;
         }
 
-        this._image = undefined;
-        this._ctxOverlay = undefined;
-
-        //each( this._events, function ( listeners  ) {
-        //    console.log( listeners );
-        //
-        //    Object.keys( listeners ).forEach( function ( event) {
-        //
-        //        if( event != "elem" )
-        //            listeners.elem.removeEventListener ( event, listeners [ event ] );
-        //    } );
-        //
-        //} );
-
-        each( this._htmlElements, function ( element, key, i, elements ) {
-            elements [ key ] = remove( element );
-        } );
-        delete  this._htmlElements;
-
-
-        var listeners;
-
         Object.keys( this._events ).forEach( ( key ) => {
 
             listeners = this._events [ key ];
@@ -202,6 +180,16 @@
                     listeners.elem.removeEventListener ( event, listeners [ event ] );
             } );
         } );
+
+        var listeners;
+
+        each( this._htmlElements, function ( element, key, i, elements ) {
+            elements [ key ] = remove( element );
+        } );
+
+        for( var key in this ) {
+           delete this [ key ];
+        }
 
         this._isDestroyed = true;
     };
