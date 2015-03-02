@@ -114,6 +114,11 @@
             throw new TypeError ( "Wrong argument [ x ] or [ y ]" );
         }
 
+        x = Math.min ( x,  this._size.width - width );
+
+        x = Math.max( x, 0 );
+        y = Math.max( y, 0 );
+
         //TODO fix exit for borders
 
         if ( x + width > this._size.width ) {
@@ -123,9 +128,6 @@
         if ( y + height > this._size.height ) {
             height = this._size.height - y;
         }
-
-        x = Math.max( x, 0 );
-        y = Math.max( y, 0 );
 
         this.clearOverlay();
         this._renderOverlay ( );
@@ -365,12 +367,13 @@
             width = Math.abs( width );
             height = Math.abs( height );
 
-            if ( y + offsetY <= 0 ) {
-                height = x;
+
+            if ( x + width > containerCoords.width ) {
+                width = containerCoords.width - x ;
             }
 
-            if ( x + offsetX <= 0 ) {
-                width = y;
+            if ( y + height > containerCoords.height ) {
+                height = containerCoords.height - y ;
             }
 
             self.setSelectZone( x + offsetX, y + offsetY , width, height );
@@ -393,7 +396,7 @@
 
             //TODO fix drag
 
-            x = Math.min ( x, parentCurrentCoords.width - dragBorder.getBoundingClientRect().width );
+            //x = Math.min ( x, parentCurrentCoords.width - dragBorder.getBoundingClientRect().width );
 
 
             self.setSelectZone( x, y, self._select.width, self._select.height );
@@ -406,7 +409,7 @@
 
 
     };
-
+    //TODO FIX drag border size
     CropperJS.prototype._createDragBorder = function ( ) {
 
         var dragBorder = createElem( "div", 30 ),
