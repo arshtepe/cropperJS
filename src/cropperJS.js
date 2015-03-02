@@ -114,6 +114,8 @@
             throw new TypeError ( "Wrong argument [ x ] or [ y ]" );
         }
 
+        //TODO fix exit for borders
+
         if ( x + width > this._size.width ) {
             width = this._size.width - x;
         }
@@ -274,13 +276,11 @@
 
     };
 
-    //TODO move mousemove to body
     CropperJS.prototype._setEvents = function ( ) {
 
         var self = this,
             overlay = this._htmlElements.canvasOverlay,
-            dragBorder = this._htmlElements.dragBorder,
-            listeners;
+            dragBorder = this._htmlElements.dragBorder;
 
         this._events [ overlay.__eventId ] = {
             mousedown: function ( e ) {
@@ -292,7 +292,7 @@
                     y: e.clientY
                 };
 
-                setSelectState( "none" );
+                setSelectState( document.body, "none" );
 
                 window.addEventListener ( "mousemove", selecting  );
             },
@@ -305,30 +305,49 @@
         };
 
         this._events [ dragBorder.__eventId ] = {
-            mousedown: function () {
 
+            mousedown: function ( e ) {
+
+                var coords = dragBorder.getBoundingClientRect();
+
+                self._dragingStart = {
+                    x: e.clientX,
+                    y: e.clientY,
+                    cX: e.clientX - coords.left,
+                    cY: e.clientY - coords.top
+                };
+
+                window.addEventListener( "mousemove",  draging );
             },
 
-            mouseup: function () {
-
-            },
             elem : dragBorder
         };
 
         this._events [ window.__eventId ] = {
-            mouseup: selectEnd,
+            mouseup: [ selectEnd, ondragEnd ],
             elem: window
-        }
+        };
 
-
-        Object.keys( this._events ).forEach( function ( key ) {
-
-            listeners = self._events [ key ];
+        each( this._events, function ( listeners ) {
 
             Object.keys( listeners ).forEach( function ( event ) {
+
+                if ( event == "elem" ) return;
+
+                if ( Array.isArray( listeners [ event ] ) ) {
+
+                    listeners [ event ].forEach( function ( handler ) {
+                        listeners.elem.addEventListener ( event, handler );
+                    } ) ;
+
+                    return;
+                }
+
                 listeners.elem.addEventListener ( event, listeners [ event ] );
+
             } )
         } );
+
 
         function selecting ( e ) {
 
@@ -360,7 +379,29 @@
 
         function selectEnd( ) {
             window.removeEventListener ( "mousemove", selecting );
-            setSelectState( "" );
+            setSelectState( document.body, "" );
+        }
+
+        function draging ( e ) {
+
+            var startCoords = self._dragingStart,
+                parentCurrentCoords = self._htmlElements.container.getBoundingClientRect(),
+                offsetX = startCoords.x - e.clientX,
+                offsetY = startCoords.y - e.clientY,
+                x = startCoords.x - parentCurrentCoords.left - offsetX - startCoords.cX ,
+                y = startCoords.y - parentCurrentCoords.top - offsetY - startCoords.cY;
+
+            //TODO fix drag
+
+            x = Math.min ( x, parentCurrentCoords.width - dragBorder.getBoundingClientRect().width );
+
+
+            self.setSelectZone( x, y, self._select.width, self._select.height );
+
+        }
+
+        function ondragEnd () {
+            window.removeEventListener( "mousemove", draging );
         }
 
 
@@ -383,19 +424,19 @@
 
         dragBorder.__eventId = Math.random();
 
+        setSelectState( dragBorder, "none" );
+
         this._htmlElements.dragBorder = this._htmlElements.container.appendChild( dragBorder );
 
     };
 
 
-    function setSelectState ( state ) {
-        var prefixes = [ "Webkit", "Moz", "ms", "O", "" ],
-            body = document.body;
-
+    function setSelectState ( elem, state ) {
+        var prefixes = [ "Webkit", "Moz", "ms", "O", "" ];
 
         prefixes.forEach( ( prefix ) => {
             prefix += "UserSelect";
-            body.style [ prefix ] = state;
+            elem.style [ prefix ] = state;
         } );
 
     };

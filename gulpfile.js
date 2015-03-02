@@ -28,7 +28,9 @@ gulp.task ( "babel", function () {
 
     return gulp.src("src/*.js")
             .pipe(babel())
-            .on( "error", function () {} )
+            .on( "error", function () {
+                gulp.run( "babel" );
+            } )
             .pipe(gulp.dest("dist"))
 } );
 
