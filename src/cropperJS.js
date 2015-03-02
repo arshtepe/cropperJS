@@ -114,15 +114,12 @@
             throw new TypeError ( "Wrong argument [ x ] or [ y ]" );
         }
 
-        x = Math.min ( x,  this._size.width - width );
-
         x = Math.max( x, 0 );
         y = Math.max( y, 0 );
 
-        //TODO fix exit for borders
-
         if ( x + width > this._size.width ) {
             width = this._size.width - x;
+            console.log( x );
         }
 
         if ( y + height > this._size.height ) {
@@ -315,8 +312,8 @@
                 self._dragingStart = {
                     x: e.clientX,
                     y: e.clientY,
-                    cX: e.clientX - coords.left,
-                    cY: e.clientY - coords.top
+                    cursorX: e.clientX - coords.left,
+                    cursorY: e.clientY - coords.top
                 };
 
                 window.addEventListener( "mousemove",  draging );
@@ -376,6 +373,14 @@
                 height = containerCoords.height - y ;
             }
 
+            if ( cX <= 0  ) {
+                width = x;
+            }
+
+            if ( cY <= 0  ) {
+                height = y;
+            }
+
             self.setSelectZone( x + offsetX, y + offsetY , width, height );
 
         };
@@ -391,12 +396,17 @@
                 parentCurrentCoords = self._htmlElements.container.getBoundingClientRect(),
                 offsetX = startCoords.x - e.clientX,
                 offsetY = startCoords.y - e.clientY,
-                x = startCoords.x - parentCurrentCoords.left - offsetX - startCoords.cX ,
-                y = startCoords.y - parentCurrentCoords.top - offsetY - startCoords.cY;
+                x = startCoords.x - parentCurrentCoords.left - offsetX - startCoords.cursorX ,
+                y = startCoords.y - parentCurrentCoords.top - offsetY - startCoords.cursorY;
 
-            //TODO fix drag
 
-            //x = Math.min ( x, parentCurrentCoords.width - dragBorder.getBoundingClientRect().width );
+            if ( x + self._select.width > parentCurrentCoords.width  ) {
+                x = parentCurrentCoords.width - self._select.width;
+            }
+
+            if ( y + self._select.height > parentCurrentCoords.height  ) {
+                y = parentCurrentCoords.height - self._select.height;
+            }
 
 
             self.setSelectZone( x, y, self._select.width, self._select.height );
