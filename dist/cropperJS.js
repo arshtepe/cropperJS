@@ -114,27 +114,37 @@
 
     CropperJS.prototype.setSelectZone = function (x, y, width, height) {
 
-        var select = this.params.select;
+        var select = this.params.select,
+            dragBorder = this._htmlElements.dragBorder;
 
         if (isEmpty(x) || isEmpty(y)) {
             throw new TypeError("Wrong argument [ x ] or [ y ]");
         }
 
-        //x = Math.min( this._size.width - select.width, x );
-        //y = Math.min( this._size.height - select.height, y );
-        //x = Math.max( x, 0 );
-        //y = Math.max( y, 0 );
+        if (x + width > this._size.width) {
+            width = this._size.width - x;
+        }
 
-        //width = width || select.width;
-        //height = height || select.height;
-        //width = Math.max( select.minWidth, width );
-        //height = Math.max( select.minHeight, height );
-        //width = Math.min ( select.maxWidth, width );
-        //height = Math.min ( select.maxHeight, height );
+        if (y + height > this._size.height) {
+            height = this._size.height - y;
+        }
+
+        x = Math.max(x, 0);
+        y = Math.max(y, 0);
 
         this.clearOverlay();
         this._renderOverlay();
         this._ctxOverlay.clearRect(x, y, width, height);
+
+        setSize({
+            width: width,
+            height: height
+        }, dragBorder);
+
+        dragBorder.style.margin = 0;
+        dragBorder.style.padding = 0;
+        dragBorder.style.top = y + "px";
+        dragBorder.style.left = x + "px";
 
         this._select = {
             x: x,
@@ -176,16 +186,6 @@
         if (this._isDestroyed) {
             return;
         }
-        //each( this._events, function ( listeners  ) {
-        //    console.log( listeners );
-        //
-        //    Object.keys( listeners ).forEach( function ( event) {
-        //
-        //        if( event != "elem" )
-        //            listeners.elem.removeEventListener ( event, listeners [ event ] );
-        //    } );
-        //
-        //} );
 
         Object.keys(this._events).forEach(function (key) {
 
@@ -203,15 +203,9 @@
             elements[key] = remove(element);
         });
 
-        //for( var key in this ) {
-        //   delete this [ key ];
-        //}
-
-        delete this._image;
-        delete this.params;
-        delete this._events;
-        delete this._ctxOverlay;
-        delete this._htmlElements;
+        for (var key in this) {
+            delete this[key];
+        }
 
         this._isDestroyed = true;
     };
@@ -230,9 +224,6 @@
         ctx.globalAlpha = this.params.transparency;
         ctx.fillStyle = "#000";
         ctx.fillRect(0, 0, this._size.width, this._size.height);
-
-        //var x = ( this._size.width / 2 ) - 100,
-        //    y = ( this._size.height / 2 ) - 100;
     };
 
     CropperJS.prototype.clearOverlay = function () {
@@ -288,6 +279,7 @@
         };
     };
 
+    //TODO move mousemove to body
     CropperJS.prototype._setEvents = function () {
 
         var self = this,
@@ -306,7 +298,8 @@
                 };
 
                 setSelectState("none");
-                overlay.addEventListener("mousemove", selecting);
+
+                window.addEventListener("mousemove", selecting);
             },
             click: function click() {
 
@@ -340,21 +333,31 @@
 
             var startCoords = self._selectingStart,
                 containerCoords = self._htmlElements.container.getBoundingClientRect(),
-                width = e.clientX - startCoords.x,
-                height = e.clientY - startCoords.y,
+                x = startCoords.x - containerCoords.left,
+                y = startCoords.y - containerCoords.top,
+                cX = e.clientX - containerCoords.left,
+                cY = e.clientY - containerCoords.top,
+                width = cX - x,
+                height = cY - y,
                 offsetX = width < 0 ? width : 0,
-                offsetY = height < 0 ? height : 0,
-                x = startCoords.x - containerCoords.left + offsetX,
-                y = startCoords.y - containerCoords.top + offsetY;
+                offsetY = height < 0 ? height : 0;
 
             width = Math.abs(width);
             height = Math.abs(height);
 
-            self.setSelectZone(x, y, width, height);
+            if (y + offsetY <= 0) {
+                height = x;
+            }
+
+            if (x + offsetX <= 0) {
+                width = y;
+            }
+
+            self.setSelectZone(x + offsetX, y + offsetY, width, height);
         };
 
         function selectEnd() {
-            overlay.removeEventListener("mousemove", selecting);
+            window.removeEventListener("mousemove", selecting);
             setSelectState("");
         }
     };
@@ -366,7 +369,7 @@
 
         dragBorder.className = "cropper-dragBorder";
         dragBorder.id = "cropper-dragBorder";
-        dragBorder.style.opacity = 0;
+        dragBorder.style.opacity = 1;
 
         for (var i = 0; i < 6; i++) {
             // TODO temp

@@ -25,9 +25,11 @@ var babel = require('gulp-babel');
 //});
 
 gulp.task ( "babel", function () {
-    return gulp.src( "src/*.js" )
-        .pipe( babel() )
-        .pipe( gulp.dest ( "dist" ) )
+
+    return gulp.src("src/*.js")
+            .pipe(babel())
+            .on( "error", function () {} )
+            .pipe(gulp.dest("dist"))
 } );
 
 gulp.task ( "uglify", function (  ) {
