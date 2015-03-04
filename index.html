@@ -31,7 +31,10 @@
         cButton = document.getElementById( "cropButton" );
 
     cButton.onclick = function () {
-        document.body.appendChild( cropper.getSelectImage() );
+
+        var img = cropper.getSelectImage();
+        if (img)
+        document.body.appendChild( img );
     };
 
     dButton.onclick = function () {
