@@ -93,6 +93,9 @@
 
         this.clearOverlay();
 
+        bgCtx.translate( size.width - 1, size.height - 1 );
+        bgCtx.rotate( Math.PI );
+
         bgCtx.clearRect( 0, 0, size.width, size.height );
         bgCtx.drawImage( image, 0, 0, size.width, size.height );
 
