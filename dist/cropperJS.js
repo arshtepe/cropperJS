@@ -166,6 +166,8 @@
 
     CropperJS.prototype.getImageUrl = function () {
 
+        if (isEmpty(this._select) || isEmpty(this._image)) return;
+
         var select = this._select,
             tempCanvas = document.createElement("canvas"),
             ctxBg = this._htmlElements.canvasImgBg.getContext("2d"),
@@ -181,6 +183,8 @@
 
     CropperJS.prototype.getSelectImage = function () {
 
+        if (isEmpty(this._select) || isEmpty(this._image)) return;
+
         var img = new Image();
         img.src = this.getImageUrl();
 
@@ -192,6 +196,8 @@
     };
 
     CropperJS.prototype.clearOverlay = function () {
+
+        if (isEmpty(this._image)) return;
 
         this._ctxOverlay.clearRect(0, 0, this._size.width, this._size.height);
         this._select = null;

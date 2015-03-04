@@ -15,10 +15,12 @@
   "author": "Artem Shtepenko",
   "license": "MIT",
   "devDependencies": {
-    "babel-loader": "^4.0.0",
     "gulp": "^3.8.10",
+    "gulp-babel": "^4.0.0",
     "gulp-plumber": "^0.6.6",
+    "gulp-rename": "^1.2.0",
     "gulp-uglify": "^1.1.0",
-    "gulp-watch": "^4.0.2"
+    "gulp-watch": "^4.0.2",
+    "run-sequence": "^1.0.2"
   }
 }
