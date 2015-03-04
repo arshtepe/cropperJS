@@ -1,8 +1,5 @@
 "use strict";
 
-//let
-//arrow functions
-
 //selectSize: { maxSize:{}, minSize:{} }
 
 ;(function () {
@@ -11,13 +8,30 @@
 
     var defaultParams = {
         transparency: 0.7,
+        autoSelect: false,
         maxCanvasSize: {
             width: 650,
             height: 400
         },
+        cropZone: {
+            border: {
+                type: "dashed", // fill
+                opacity: 0.7,
+                lineDashes: [10, 10],
+                width: 2,
+                color: "gray"
+            },
+            point: {
+                color: "gray",
+                opacity: 1,
+                count: 6, // or 4
+                width: 10,
+                height: 10
+            }
+        },
         select: {
-            minWidth: 120,
-            minHeight: 120
+            minWidth: 0,
+            minHeight: 0
         }
     };
 
@@ -27,25 +41,15 @@
         setDefaultsParams(params);
 
         this.params = params;
-        this._events = {};
         this._htmlElements = {};
 
         if (isIMGElement(params.image)) {
             this.setImg(params.image);
         };
 
-        if (isEmpty(params.select.width) || isEmpty(params.select.height)) {
-            throw new TypeError("Wrong argument [params.select.size.width] or  [params.select.size.height]");
-        };
-
-        window.__eventId = Math.random();
-
         this._createElements();
-        this._createDragBorder();
         this._setEvents();
     };
-
-    //#include ./cropper.js
 
     CropperJS.prototype.getCropperElement = function () {
         return this._htmlElements.container;
@@ -61,7 +65,6 @@
         }
 
         if (!isEmpty(this._image) && (image == this._image || image.src == this._image.src)) {
-
             return;
         }
 
@@ -85,40 +88,57 @@
 
         this._image = image;
 
-        //TODO refactor
-
         var size = this._size = this._getSize(image),
             imgBg = this._htmlElements.canvasImgBg,
             bgCtx = imgBg.getContext("2d"),
-            x = (size.width - params.select.width) / 2,
-            y = (size.height - params.select.height) / 2;
+            x = (size.width - params.select.minWidth) / 2,
+            y = (size.height - params.select.minHeight) / 2;
 
         setSize(size, this._htmlElements.canvasOverlay);
         setSize(size, imgBg);
         setSize(size, this._htmlElements.container);
 
+        this.clearOverlay();
+
+        bgCtx.clearRect(0, 0, size.width, size.height);
         bgCtx.drawImage(image, 0, 0, size.width, size.height);
 
-        if (isEmpty(params.select.maxWidth)) {
-            params.select.maxWidth = size.width;
+        if (params.autoSelect) {
+            this.setSelectZone(x, y);
         }
-
-        if (isEmpty(params.select.maxHeight)) {
-            params.select.maxHeight = size.height;
-        }
-
-        this.setSelectZone(x, y);
 
         return this;
     };
 
     CropperJS.prototype.setSelectZone = function (x, y, width, height) {
 
-        var select = this.params.select,
-            dragBorder = this._htmlElements.dragBorder;
+        var select = this.params.select;
+
+        width = width || select.minWidth;
+        height = height || select.minHeight;
+
+        width = Math.max(width, select.minWidth);
+        height = Math.max(height, select.minHeight);
+
+        if (!isEmpty(select.maxHeight)) {
+            height = Math.min(height, select.maxHeight);
+        }
+
+        if (!isEmpty(select.maxWidth)) {
+            width = Math.min(width, select.maxWidth);
+        }
+
+        this._setSelectZone(x, y, width, height);
+    };
+
+    CropperJS.prototype._setSelectZone = function (x, y, width, height) {
 
         if (isEmpty(x) || isEmpty(y)) {
             throw new TypeError("Wrong argument [ x ] or [ y ]");
+        }
+
+        if (isEmpty(this._image)) {
+            return;
         }
 
         x = Math.max(x, 0);
@@ -126,7 +146,6 @@
 
         if (x + width > this._size.width) {
             width = this._size.width - x;
-            console.log(x);
         }
 
         if (y + height > this._size.height) {
@@ -135,17 +154,7 @@
 
         this.clearOverlay();
         this._renderOverlay();
-        this._ctxOverlay.clearRect(x, y, width, height);
-
-        setSize({
-            width: width,
-            height: height
-        }, dragBorder);
-
-        dragBorder.style.margin = 0;
-        dragBorder.style.padding = 0;
-        dragBorder.style.top = y + "px";
-        dragBorder.style.left = x + "px";
+        this._renderSelectZone(x, y, width, height);
 
         this._select = {
             x: x,
@@ -166,6 +175,7 @@
         tempCanvas.width = select.width;
         tempCanvas.height = select.height;
         ctx.putImageData(imgData, 0, 0);
+
         return tempCanvas.toDataURL();
     };
 
@@ -181,28 +191,25 @@
         return this._select;
     };
 
+    CropperJS.prototype.clearOverlay = function () {
+
+        this._ctxOverlay.clearRect(0, 0, this._size.width, this._size.height);
+        this._select = null;
+    };
+
     CropperJS.prototype.destroy = function () {
-        var _this = this;
 
         if (this._isDestroyed) {
             return;
         }
 
-        Object.keys(this._events).forEach(function (key) {
+        //TODO check memory leak
 
-            listeners = _this._events[key];
+        window.removeEventListener("mouseup", this._windowEndHandler);
 
-            Object.keys(listeners).forEach(function (event) {
-
-                if (event != "elem") listeners.elem.removeEventListener(event, listeners[event]);
-            });
-        });
-
-        var listeners;
-
-        each(this._htmlElements, function (element, key, i, elements) {
-            elements[key] = remove(element);
-        });
+        Object.keys(this._htmlElements).forEach(function (key) {
+            this._htmlElements[key] = remove(this._htmlElements[key]);
+        }, this);
 
         for (var key in this) {
             delete this[key];
@@ -210,13 +217,6 @@
 
         this._isDestroyed = true;
     };
-
-    function each(collection, callback) {
-
-        Object.keys(collection).forEach(function (key, i) {
-            callback(collection[key], key, i, collection);
-        });
-    }
 
     CropperJS.prototype._renderOverlay = function () {
 
@@ -227,10 +227,28 @@
         ctx.fillRect(0, 0, this._size.width, this._size.height);
     };
 
-    CropperJS.prototype.clearOverlay = function () {
+    CropperJS.prototype._renderSelectZone = function (x, y, width, height) {
 
-        this._ctxOverlay.clearRect(0, 0, this._size.width, this._size.height);
-        this._select = null;
+        var overlayCtx = this._ctxOverlay,
+            cropZone = this.params.cropZone;
+
+        overlayCtx.clearRect(x, y, width, height);
+
+        if (cropZone.border.type == "dashed") {
+
+            if (!isEmpty(overlayCtx.setLineDash)) {
+                overlayCtx.setLineDash(cropZone.border.lineDashes);
+            } else if (isEmpty(overlayCtx.mozDasz)) {
+                overlayCtx.mozDash(cropZone.border.lineDashes);
+            }
+        }
+
+        overlayCtx.beginPath();
+        overlayCtx.globalAlpha = cropZone.border.transparency;
+        overlayCtx.lineWidth = cropZone.border.width;
+        overlayCtx.strokeStyle = cropZone.border.color;
+        overlayCtx.rect(x, y, width, height);
+        overlayCtx.stroke();
     };
 
     CropperJS.prototype._createElements = function () {
@@ -242,7 +260,6 @@
         canvasBg = this._htmlElements.canvasImgBg = createElem("canvas", 0);
         canvasOverlay = this._htmlElements.canvasOverlay = createElem("canvas", 10);
         this._ctxOverlay = canvasOverlay.getContext("2d");
-        this._ctxOverlay.__eventId = Math.random();
 
         container.appendChild(canvasBg);
         container.appendChild(canvasOverlay);
@@ -283,81 +300,81 @@
     CropperJS.prototype._setEvents = function () {
 
         var self = this,
-            overlay = this._htmlElements.canvasOverlay,
-            dragBorder = this._htmlElements.dragBorder;
+            overlay = this._htmlElements.canvasOverlay;
 
-        this._events[overlay.__eventId] = {
-            mousedown: function mousedown(e) {
+        this._windowEndHandler = function () {
 
-                self._select = null;
+            var select = self._select;
 
-                self._selectingStart = {
-                    x: e.clientX,
-                    y: e.clientY
-                };
+            window.removeEventListener("mousemove", selecting);
+            window.removeEventListener("mousemove", draging);
+            setSelectState(document.body, "");
 
-                setSelectState(document.body, "none");
-
-                window.addEventListener("mousemove", selecting);
-            },
-            click: function click() {
-
-                if (!self._select) self.clearOverlay();
-            },
-            elem: overlay
+            if (!isEmpty(select)) self.setSelectZone(select.x, select.y, select.width, select.height);
         };
 
-        this._events[dragBorder.__eventId] = {
+        function onStart(e) {
 
-            mousedown: function mousedown(e) {
+            if (isEmpty(self._image)) {
+                return;
+            }if (self._select && onDragStart(e)) {
+                return;
+            }
 
-                var coords = dragBorder.getBoundingClientRect();
+            self._select = null;
+
+            self._selectingStart = {
+                x: e.clientX,
+                y: e.clientY
+            };
+
+            setSelectState(document.body, "none");
+
+            window.addEventListener("mousemove", selecting);
+        };
+
+        overlay.addEventListener("click", onOverlayClick);
+        overlay.addEventListener("mousedown", onStart);
+        window.addEventListener("mouseup", this._windowEndHandler);
+
+        function onDragStart(e) {
+
+            var overlayRect = overlay.getBoundingClientRect(),
+                select = self._select,
+                x = e.clientX - overlayRect.left,
+                y = e.clientY - overlayRect.top,
+                bWidth = self.params.cropZone.border.width,
+                right = select.x + select.width + bWidth,
+                bottom = select.y + select.height + bWidth;
+
+            if (x >= select.x - bWidth && x <= right && y >= select.y - bWidth && y <= bottom) {
 
                 self._dragingStart = {
                     x: e.clientX,
                     y: e.clientY,
-                    cursorX: e.clientX - coords.left,
-                    cursorY: e.clientY - coords.top
+                    cursorX: e.clientX - overlayRect.left - select.x,
+                    cursorY: e.clientY - overlayRect.top - select.y
                 };
 
                 window.addEventListener("mousemove", draging);
-            },
+                return true;
+            }
 
-            elem: dragBorder
-        };
+            return false;
+        }
 
-        this._events[window.__eventId] = {
-            mouseup: [selectEnd, ondragEnd],
-            elem: window
-        };
-
-        each(this._events, function (listeners) {
-
-            Object.keys(listeners).forEach(function (event) {
-
-                if (event == "elem") return;
-
-                if (Array.isArray(listeners[event])) {
-
-                    listeners[event].forEach(function (handler) {
-                        listeners.elem.addEventListener(event, handler);
-                    });
-
-                    return;
-                }
-
-                listeners.elem.addEventListener(event, listeners[event]);
-            });
-        });
+        function onOverlayClick() {
+            if (isEmpty(self._select) && !isEmpty(self._image)) self.clearOverlay();
+        }
 
         function selecting(e) {
 
-            var startCoords = self._selectingStart,
-                containerCoords = self._htmlElements.container.getBoundingClientRect(),
-                x = startCoords.x - containerCoords.left,
-                y = startCoords.y - containerCoords.top,
-                cX = e.clientX - containerCoords.left,
-                cY = e.clientY - containerCoords.top,
+            var startRect = self._selectingStart,
+                containerRect = self._htmlElements.container.getBoundingClientRect(),
+                x = startRect.x - containerRect.left,
+                y = startRect.y - containerRect.top,
+                cX = e.clientX - containerRect.left,
+                cY = e.clientY - containerRect.top,
                 width = cX - x,
                 height = cY - y,
                 offsetX = width < 0 ? width : 0,
@@ -365,14 +382,6 @@
 
             width = Math.abs(width);
             height = Math.abs(height);
-
-            if (x + width > containerCoords.width) {
-                width = containerCoords.width - x;
-            }
-
-            if (y + height > containerCoords.height) {
-                height = containerCoords.height - y;
-            }
 
             if (cX <= 0) {
                 width = x;
@@ -382,13 +391,8 @@
                 height = y;
             }
 
-            self.setSelectZone(x + offsetX, y + offsetY, width, height);
+            self._setSelectZone(x + offsetX, y + offsetY, width, height);
         };
-
-        function selectEnd() {
-            window.removeEventListener("mousemove", selecting);
-            setSelectState(document.body, "");
-        }
 
         function draging(e) {
 
@@ -407,38 +411,12 @@
                 y = parentCurrentCoords.height - self._select.height;
             }
 
-            self.setSelectZone(x, y, self._select.width, self._select.height);
+            self._setSelectZone(x, y, self._select.width, self._select.height);
         }
-
-        function ondragEnd() {
-            window.removeEventListener("mousemove", draging);
-        }
-    };
-    //TODO FIX drag border size
-    CropperJS.prototype._createDragBorder = function () {
-
-        var dragBorder = createElem("div", 30),
-            point;
-
-        dragBorder.className = "cropper-dragBorder";
-        dragBorder.id = "cropper-dragBorder";
-        dragBorder.style.opacity = 1;
-
-        for (var i = 0; i < 6; i++) {
-            // TODO temp
-            point = document.createElement("div");
-            point.className = "cropper-point point" + i;
-            dragBorder.appendChild(point);
-        }
-
-        dragBorder.__eventId = Math.random();
-
-        setSelectState(dragBorder, "none");
-
-        this._htmlElements.dragBorder = this._htmlElements.container.appendChild(dragBorder);
     };
 
     function setSelectState(elem, state) {
+        //TODO fix return back select state
         var prefixes = ["Webkit", "Moz", "ms", "O", ""];
 
         prefixes.forEach(function (prefix) {
