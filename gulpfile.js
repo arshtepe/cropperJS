@@ -17,13 +17,15 @@ gulp.task ( "babel", function ( ) {
 
 gulp.task ( "uglify", function (  ) {
     return gulp.src( "dist/*.js" )
-            .pipe(uglify())
+            .pipe( plumber() )
+            .pipe( uglify() )
+            .pipe ( plumber.stop() )
             .pipe(gulp.dest( 'dist' ));
 } );
 
 
 gulp.task( 'watch', function() {
-    gulp.watch( "src/*.js", [ "babel" ] );
+    gulp.watch( "src/*.js", [ "babel", "uglify" ] );
 
 });
 
